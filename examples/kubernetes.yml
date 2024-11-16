@@ -1,0 +1,216 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: cs2-deploy
+  namespace: cs2
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cs2-deploy
+  template:
+    metadata:
+      labels:
+        app: cs2-deploy
+    spec:
+      restartPolicy: Always
+      serviceAccountName: sa-with-anyuid
+      schedulerName: default-scheduler
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        seLinuxOptions:
+          level: 's0:c27,c4'
+        supplementalGroups:
+          - 1000620001
+          - 1000
+        fsGroup: 1000
+      containers:
+        - resources: {}
+          terminationMessagePath: /dev/termination-log
+          name: container
+          env:
+            - name: SRCDS_TOKEN
+              value: CHANGEME
+            - name: CS2_SERVERNAME
+              value: SERVERNAME
+            - name: CS2_CHEATS
+              value: '0'
+            - name: CS2_SERVER_HIBERNATE
+              value: '1'
+            - name: CS2_IP
+              value: 0.0.0.0
+            - name: CS2_PORT
+              value: '27015'
+            - name: CS2_RCON_PORT
+              value: '27015'
+            - name: CS2_LAN
+              value: '0'
+            - name: CS2_RCONPW
+              value: ijd2309f2f0
+            - name: CS2_PW
+              value: calueslamejor
+            - name: CS2_MAXPLAYERS
+              value: '10'
+            - name: CS2_GAMEALIAS
+              value: competitive
+            - name: CS2_GAMETYPE
+              value: '0'
+            - name: CS2_GAMEMODE
+              value: '1'
+            - name: CS2_MAPGROUP
+              value: mg_active
+            - name: CS2_STARTMAP
+              value: de_inferno
+            - name: CS2_BOT_DIFFICULTY
+              value: '0'
+            - name: CS2_BOT_QUOTA_MODE
+              value: fill
+            - name: CS2_BOT_QUOTA
+              value: '0'
+            - name: TV_ENABLE
+              value: '0'
+            - name: TV_PORT
+              value: '27020'
+            - name: TV_AUTORECORD
+              value: '1'
+            - name: TV_PW
+              value: calueslamejor
+            - name: TV_MAXRATE
+              value: '1024'
+            - name: TV_DELAY
+              value: '5'
+            - name: CS2_LOG
+              value: 'on'
+            - name: CS2_LOG_MONEY
+              value: '1'
+            - name: CS2_LOG_DETAIL
+              value: '3'
+            - name: CS2_LOG_ITEMS
+              value: '1'
+            - name: STEAMAPPVALIDATE
+              value: '0'
+            - name: HOME
+              value: /home/steam
+            - name: TZ
+              value: Europe/Madrid
+          securityContext:
+            runAsUser: 1000
+          ports:
+            - containerPort: 27015
+              protocol: TCP
+            - containerPort: 27016
+              protocol: TCP
+            - containerPort: 27020
+              protocol: TCP
+          imagePullPolicy: Always
+          volumeMounts:
+            - name: cs2-server
+              mountPath: /home/steam/cs2-dedicated
+          terminationMessagePolicy: File
+          image: 'docker.io/joedwards32/cs2:latest'
+      serviceAccount: sa-with-anyuid
+      volumes:
+        - name: cs2-server
+          persistentVolumeClaim:
+            claimName: cs2-server
+      dnsPolicy: ClusterFirst
+  strategy:
+    type: Recreate
+  revisionHistoryLimit: 10
+  progressDeadlineSeconds: 600
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: cs2-server
+  namespace: cs2
+  annotations:
+    volume.beta.kubernetes.io/storage-provisioner: rook-ceph.cephfs.csi.ceph.com
+    volume.kubernetes.io/storage-provisioner: rook-ceph.cephfs.csi.ceph.com
+  finalizers:
+    - kubernetes.io/pvc-protection
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Gi
+  volumeName: pvc-4f965fed-a060-4316-8fef-65c06f650276
+  storageClassName: rook-cephfs
+  volumeMode: Filesystem
+---
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: pvc-4f965fed-a060-4316-8fef-65c06f650276
+  annotations:
+    pv.kubernetes.io/provisioned-by: rook-ceph.cephfs.csi.ceph.com
+    volume.kubernetes.io/provisioner-deletion-secret-name: rook-csi-cephfs-provisioner
+    volume.kubernetes.io/provisioner-deletion-secret-namespace: rook-ceph
+  finalizers:
+    - kubernetes.io/pv-protection
+spec:
+  capacity:
+    storage: 100Gi
+  csi:
+    driver: rook-ceph.cephfs.csi.ceph.com
+    volumeHandle: 0001-0009-rook-ceph-0000000000000001-5dd02aa3-a2cd-11ef-ac6e-0a580a810227
+    volumeAttributes:
+      clusterID: rook-ceph
+      fsName: myfs
+      pool: myfs-replicated
+      storage.kubernetes.io/csiProvisionerIdentity: 1731618363960-8081-rook-ceph.cephfs.csi.ceph.com
+      subvolumeName: csi-vol-5dd02aa3-a2cd-11ef-ac6e-0a580a810227
+      subvolumePath: /volumes/csi/csi-vol-5dd02aa3-a2cd-11ef-ac6e-0a580a810227/52fd6b60-1c63-4c6b-9678-305377466d64
+    nodeStageSecretRef:
+      name: rook-csi-cephfs-node
+      namespace: rook-ceph
+    controllerExpandSecretRef:
+      name: rook-csi-cephfs-provisioner
+      namespace: rook-ceph
+  accessModes:
+    - ReadWriteOnce
+  claimRef:
+    kind: PersistentVolumeClaim
+    namespace: cs2
+    name: cs2-server
+    apiVersion: v1
+  persistentVolumeReclaimPolicy: Delete
+  storageClassName: rook-cephfs
+  volumeMode: Filesystem
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: cs2-service
+  namespace: cs2-riu
+  uid: 59e99711-d47b-4aab-b115-de8f29ce4348
+  resourceVersion: '437286'
+  creationTimestamp: '2024-11-14T22:21:58Z'
+spec:
+  externalIPs:
+    - 192.168.69.235
+  clusterIP: 172.30.24.236
+  externalTrafficPolicy: Cluster
+  ipFamilies:
+    - IPv4
+  ports:
+    - name: port-1
+      protocol: UDP
+      port: 27015
+      targetPort: 27015
+      nodePort: 30983
+    - name: port-3
+      protocol: UDP
+      port: 27020
+      targetPort: 27020
+      nodePort: 32158
+  internalTrafficPolicy: Cluster
+  clusterIPs:
+    - 172.30.24.236
+  allocateLoadBalancerNodePorts: true
+  type: LoadBalancer
+  ipFamilyPolicy: SingleStack
+  sessionAffinity: None
+  selector:
+    app: cs2-deploy
